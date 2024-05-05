@@ -1,0 +1,216 @@
+package com.example.elevatorsimulationfx;
+
+import javafx.application.Application;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.scene.Scene;
+import javafx.scene.control.Button;
+import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.StackPane;
+import javafx.scene.paint.Color;
+import javafx.scene.shape.Rectangle;
+import javafx.stage.Stage;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
+
+// Enum for Elevator Types
+enum ElevatorType {
+    STANDARD,
+    EXPRESS
+}
+
+// Person superclass
+class Person {
+    private int startingFloor;
+    private int destinationFloor;
+
+    public Person(int startingFloor, int destinationFloor) {
+        this.startingFloor = startingFloor;
+        this.destinationFloor = destinationFloor;
+    }
+
+    public int getStartingFloor() {
+        return startingFloor;
+    }
+
+    public int getDestinationFloor() {
+        return destinationFloor;
+    }
+}
+
+// Passenger class
+class Passenger extends Person {
+    public Passenger(int startingFloor, int destinationFloor) {
+        super(startingFloor, destinationFloor);
+    }
+}
+
+// Staff class
+class Staff extends Person {
+    public Staff(int startingFloor, int destinationFloor) {
+        super(startingFloor, destinationFloor);
+    }
+}
+
+// Elevator class
+class Elevator {
+    int currentFloor;
+    List<Person> passengers;
+    private ElevatorType type;
+
+    public Elevator(ElevatorType type) {
+        this.type = type;
+        this.passengers = new ArrayList<>();
+        this.currentFloor = 0; // Assuming ground floor is 0
+    }
+
+    public boolean isFull() {
+        return passengers.size() > 10;
+    }
+
+    public ElevatorType getType() {
+        return type;
+    }
+
+    public void move(int destinationFloor) {
+        // Move the elevator to the destination floor
+        currentFloor = destinationFloor;
+        System.out.println("Elevator moved to floor " + currentFloor);
+    }
+
+    public void pickup(Person person) {
+        // Add passenger to elevator
+        passengers.add(person);
+        System.out.println("Person picked up for floor " + person.getDestinationFloor());
+    }
+
+    public void dropOff(Person person) {
+        // Remove passenger from elevator
+        passengers.remove(person);
+        System.out.println("Person dropped off at floor " + person.getDestinationFloor());
+    }
+}
+
+// ElevatorSimulator class
+public class ElevatorSimulator extends Application {
+    private List<Elevator> elevators;
+    private List<Person> people;
+    private int numFloors;
+    private Random random;
+
+    private GridPane elevatorGrid;
+    private Rectangle[] elevatorRectangles;
+
+    public static final int RECT_WIDTH = 40;
+    public static final int RECT_HEIGHT = 20;
+
+    public static final Color ELEVATOR_COLOR = Color.BLUE;
+    public static final Color FLOOR_COLOR = Color.LIGHTGRAY;
+
+    @Override
+    public void start(Stage primaryStage) {
+        // Initialize simulation parameters
+        numFloors = 5;
+        random = new Random();
+        elevators = new ArrayList<>();
+        people = new ArrayList<>();
+        elevatorGrid = new GridPane();
+        elevatorRectangles = new Rectangle[numFloors];
+
+        // Create elevators
+        for (int i = 0; i < 2; i++) {
+            ElevatorType type = (random.nextInt(100) < 70) ? ElevatorType.STANDARD : ElevatorType.EXPRESS;
+            elevators.add(new Elevator(type));
+        }
+
+        // Create UI elements
+        StackPane root = new StackPane();
+        root.getChildren().add(elevatorGrid);
+        Scene scene = new Scene(root, 600, 400);
+
+        // Initialize elevator rectangles
+        for (int i = 0; i < numFloors; i++) {
+            Rectangle rect = new Rectangle(0, 0, RECT_WIDTH, RECT_HEIGHT);
+            rect.setFill(FLOOR_COLOR);
+            elevatorGrid.add(rect, 0, numFloors - 1 - i);
+            elevatorRectangles[i] = rect;
+        }
+
+        // Add buttons for adding passengers and staff
+        Button addPassengerBtn = new Button("Add Passenger");
+        addPassengerBtn.setOnAction(e -> addPerson(false));
+        Button addStaffBtn = new Button("Add Staff");
+        addStaffBtn.setOnAction(e -> addPerson(true));
+        HBox buttonBox = new HBox(10, addPassengerBtn, addStaffBtn);
+        buttonBox.setAlignment(Pos.CENTER);
+        buttonBox.setPadding(new Insets(10));
+
+        root.getChildren().add(buttonBox);
+
+        primaryStage.setTitle("Elevator Simulator");
+        primaryStage.setScene(scene);
+        primaryStage.show();
+
+        // Start simulation
+        simulate(60);
+    }
+
+    // Method to add people to simulation
+    public void addPerson(boolean isStaff) {
+        int startingFloor = random.nextInt(numFloors);
+        int destinationFloor = random.nextInt(numFloors);
+        while (destinationFloor == startingFloor) {
+            destinationFloor = random.nextInt(numFloors);
+        }
+
+        if (isStaff) {
+            people.add(new Staff(startingFloor, destinationFloor));
+            System.out.println("Staff added.");
+        } else {
+            people.add(new Passenger(startingFloor, destinationFloor));
+            System.out.println("Passenger added.");
+        }
+    }
+
+    // Method to simulate elevator movements
+    public void simulate(int numIterations) {
+        for (int i = 0; i < numIterations; i++) {
+            for (Elevator elevator : elevators) {
+                // Simulate elevator movement based on its type and passenger pickups/drop-offs
+                int destinationFloor = random.nextInt(numFloors);
+                elevator.move(destinationFloor);
+
+                // Simulate picking up people
+                for (Person person : people) {
+                    if (elevator.getType() == ElevatorType.EXPRESS || person instanceof Staff) {
+                        if (person.getStartingFloor() == elevator.currentFloor) {
+                            elevator.pickup(person);
+                        }
+                    } else {
+                        if (person.getStartingFloor() == elevator.currentFloor && !elevator.isFull()) {
+                            elevator.pickup(person);
+                        }
+                    }
+                }
+
+                // Simulate dropping off people
+                List<Person> peopleToDropOff = new ArrayList<>();
+                for (Person person : elevator.passengers) {
+                    if (person.getDestinationFloor() == elevator.currentFloor) {
+                        peopleToDropOff.add(person);
+                    }
+                }
+                for (Person person : peopleToDropOff) {
+                    elevator.dropOff(person);
+                }
+            }
+        }
+    }
+
+    public static void main(String[] args) {
+        launch(args);
+    }
+}
